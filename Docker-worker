@@ -1,0 +1,15 @@
+FROM node:14
+
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+RUN npm install --production
+
+COPY . .
+
+RUN pip3 install youtube-dl
+
+CMD ["node", "worker/src/downloader.js"]

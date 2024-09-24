@@ -1,7 +1,16 @@
 import express from "express";
 import { createClient } from "redis";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import getVideoMetadata from "./metadata.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express()
+app.use(cors())
 
 const client = await createClient()
     .on('error', err => console.log('Redis Client Error', err))
@@ -16,6 +25,16 @@ app.get('/', (req, res) => {
     res.send("waddup")
 })
 
+
+app.get('/metadata',async(req,res)=>{
+
+    const url = req.query.url
+    const metadata = await getVideoMetadata(url)
+    res.json(metadata)
+
+
+    })
+
 app.get('/download', async (req, res) => {
     const url = req.query.url
     if (!url) res.status(400).send("Please provide a url")
@@ -26,8 +45,16 @@ app.get('/download', async (req, res) => {
 
         await subscriber.subscribe("download_complete", (message) => {
             console.log(`message received  : ${message}`)
+
             console.log(`video:::${message}`);
-            res.status(200).send("hulloooooo")
+            const file = path.join(__dirname, `../worker/${message}`)
+            console.log('file path :::',file)
+            // res.status(200).send("hulloooooo")
+            if (fs.existsSync(file)) {
+                res.status(200).json({ fileUrl: `http://localhost:3000/files/${video_id}.mp4` });
+            } else {
+                res.status(500).send('File not found');
+            }
 
         })
 
@@ -40,5 +67,6 @@ app.get('/download', async (req, res) => {
     }
 
 })
+app.use('/files', express.static(path.join(__dirname, '../worker')));
 
 app.listen(3000)
